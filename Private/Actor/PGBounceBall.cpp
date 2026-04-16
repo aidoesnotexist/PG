@@ -67,7 +67,7 @@ void APGBounceBall::Reset()
 
 void APGBounceBall::HandleWallCollision(sf::Vector2f& Position)
 {
-	sf::CircleShape* Shape = dynamic_cast<sf::CircleShape*>(GetActorRenderTarget().Drawable);
+	sf::CircleShape* Shape = dynamic_cast<sf::CircleShape*>(GetActorRenderTarget().Drawable.get());
 
 	float Radius = Shape->getRadius();
 
@@ -91,11 +91,8 @@ void APGBounceBall::HandleWallCollision(sf::Vector2f& Position)
 
 void APGBounceBall::HandleCharacterCollision(sf::Vector2f& Position)
 {
-	sf::CircleShape* Shape = dynamic_cast<sf::CircleShape*>(GetActorRenderTarget().Drawable);
-
+	sf::CircleShape* Shape = dynamic_cast<sf::CircleShape*>(GetActorRenderTarget().Drawable.get());
 	float Radius = Shape->getRadius();
-
-	sf::FloatRect BallRect(Position.x - Radius, Position.y - Radius, Radius * 2.f, Radius * 2.f);
 
 	for (APGCharacter* Obstacle : CachedObstacles)
 	{
@@ -103,10 +100,17 @@ void APGBounceBall::HandleCharacterCollision(sf::Vector2f& Position)
 
 		if (CircleIntersectsRect(Position, Radius, ObstacleRect))
 		{
-			HandleBounce(ObstacleRect, Position, Radius);
-			OnBounce.Broadcast(Obstacle);
-			MovementVelocity *= Accention;
-			break;
+			float PaddleCenterX = ObstacleRect.left + ObstacleRect.width * 0.5f;
+			bool movingRight = MoveDirection.x > 0;
+			bool ballToLeft = Position.x < PaddleCenterX;
+
+			if ((movingRight && ballToLeft) || (!movingRight && !ballToLeft))
+			{
+				HandleBounce(ObstacleRect, Position, Radius);
+				OnBounce.Broadcast(Obstacle);
+				MovementVelocity *= Accention;
+				break;
+			}
 		}
 	}
 }
@@ -114,27 +118,24 @@ void APGBounceBall::HandleCharacterCollision(sf::Vector2f& Position)
 void APGBounceBall::HandleBounce(const sf::FloatRect& ObstacleRect, sf::Vector2f& Position, float Radius)
 {
 	float ObstacleCenterY = ObstacleRect.top + ObstacleRect.height * 0.5f;
-
 	float Distance = Position.y - ObstacleCenterY;
 
 	float Normalized = Distance / (ObstacleRect.height * 0.5f);
-
-	if (Normalized < -1.f) Normalized = -1.f;
-	if (Normalized > 1.f)  Normalized = 1.f;
+	Normalized = std::clamp(Normalized, -1.f, 1.f);
 
 	MoveDirection.x *= -1.f;
 	MoveDirection.y = Normalized;
 
 	float Norm = std::sqrt(MoveDirection.x * MoveDirection.x + MoveDirection.y * MoveDirection.y);
-	MoveDirection /= Norm;
+	if (Norm > 0.f) MoveDirection /= Norm;
 
 	if (MoveDirection.x > 0)
 	{
-		Position.x = ObstacleRect.left + ObstacleRect.width + Radius;
+		Position.x = ObstacleRect.left + ObstacleRect.width + Radius + 0.1f;
 	}
 	else
 	{
-		Position.x = ObstacleRect.left - Radius;
+		Position.x = ObstacleRect.left - Radius - 0.1f;
 	}
 }
 
@@ -144,14 +145,32 @@ void APGBounceBall::OnGameDifficultyChanged(const FGameDifficulty& GameDifficult
 	Accention = GameDifficulty.BallSpeedAccention;
 }
 
-bool APGBounceBall::CircleIntersectsRect(const sf::Vector2f& Pos, float Radius, const sf::FloatRect& Rect)
+bool APGBounceBall::CircleIntersectsRect(sf::Vector2f& Pos, float Radius, const sf::FloatRect& Rect)
 {
 	float ClosestX = std::clamp(Pos.x, Rect.left, Rect.left + Rect.width);
 	float ClosestY = std::clamp(Pos.y, Rect.top, Rect.top + Rect.height);
 
 	float Dx = Pos.x - ClosestX;
 	float Dy = Pos.y - ClosestY;
+	float DistanceSq = (Dx * Dx) + (Dy * Dy);
 
-	return (Dx * Dx + Dy * Dy) <= (Radius * Radius);
+	if (DistanceSq < (Radius * Radius))
+	{
+		float Distance = std::sqrt(DistanceSq);
+
+		if (Distance < 0.0001f) {
+			Pos.y = Rect.top - Radius;
+			return true;
+		}
+
+		float Overlap = Radius - Distance;
+
+		Pos.x += (Dx / Distance) * Overlap;
+		Pos.y += (Dy / Distance) * Overlap;
+
+		return true;
+	}
+
+	return false;
 }
 

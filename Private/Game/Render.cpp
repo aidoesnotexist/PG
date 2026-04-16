@@ -2,30 +2,20 @@
 #include "Actor/PGViewport.h"
 #include "Actor/PGActor.h"
 #include "Core/Components/StrongPtr.h"
-#include "Instance/Subsystems/InputHandler.h"
 #include "Instance/PGGameInstance.h"
-#include "Instance/Subsystems/SaveGameManager.h"
 
 
-void RRender::Init(APGViewport* InViewport, UInputHandler* InInputHandler)
+void RRender::Init(APGViewport* InViewport)
 {
 	Viewport = InViewport;
-	InputHandler = InInputHandler;
 
 	UPGGameInstance* GameInstance = UPGGameInstance::Get();
 	assert(GameInstance && "GameInstance was NULLPTR");
-
-	FWindowSettings WindowSettings;
-	USaveGameManager* SaveGameManager = GameInstance->GetSubsystem<USaveGameManager>();
-	if (SaveGameManager)
-	{
-		WindowSettings = SaveGameManager->RequestUserSettings();
-	}
 }
 
 void RRender::StartParallel()
 {
-	RenderThread = std::thread(&RRender::RenderUpdate, this);
+	RenderThread = std::thread(&RRender::CacheRenderData, this);
 }
 
 void RRender::StopWithBlock()
@@ -41,41 +31,6 @@ void RRender::StopWithBlock()
 
 void RRender::CacheRenderData() const
 {
-	if (!Viewport)
-	{
-		return;
-	}
-
-	NextBuffer.Clear();
-
-	const std::vector<TStrongPtr<APGActor>>& Actors = Viewport->GetViewportActors();
-	for (const TStrongPtr<APGActor>& Actor : Actors)
-	{
-		if (Actor.IsValid())
-		{
-			if (Actor->GetActorRenderTarget().bRenderOpacity)
-			{
-				NextBuffer.AddTarget(Actor->GetActorRenderTarget());
-			}
-			if (Actor->GetActorRenderText().bRenderOpacity)
-			{
-				NextBuffer.AddTarget(Actor->GetActorRenderText());
-			}
-		}
-	}
-
-	std::lock_guard<std::mutex> Lock(BufferMutex);
-	std::swap(Buffer, NextBuffer);
-}
-
-void RRender::ClearRenderCache()
-{
-	Buffer.Clear();
-	NextBuffer.Clear();
-}
-
-void RRender::RenderUpdate()
-{
 	while (!bStop)
 	{
 		while (!bUpdateRender && !bStop)
@@ -85,37 +40,61 @@ void RRender::RenderUpdate()
 
 		if (bStop)
 		{
-			bStop = false;
 			return;
 		}
 
-		FRenderData RenderData;
+		if (!Viewport)
+		{
+			continue;
+		}
+
+		FRenderData WorkerBuffer;
+
+		std::vector<TStrongPtr<APGActor>> CopyActors;
+		{
+			std::lock_guard<std::mutex> lock(Viewport->ActorsMutex);
+			CopyActors = Viewport->GetViewportActors();
+		}
+
+		for (const TStrongPtr<APGActor>& Actor : CopyActors)
+		{
+			if (!Actor.IsValid())
+			{
+				continue;
+			}
+
+
+			std::lock_guard<std::mutex> Lock(Viewport->TargetMutex);
+			const FRenderTarget& Target = Actor->GetActorRenderTarget();
+			if (Target.bRenderOpacity)
+			{
+				WorkerBuffer.AddTarget(Target);
+			}
+			const FRenderTarget& RenderText = Actor->GetActorRenderText();
+			if (RenderText.bRenderOpacity)
+			{
+				WorkerBuffer.AddTarget(RenderText);
+			}
+
+		}
+
 		{
 			std::lock_guard<std::mutex> Lock(BufferMutex);
-			RenderData = Buffer;
-		}
-
-		if (Viewport)
-		{
-			std::unique_lock<std::shared_mutex>&& RWindowLock = Viewport->LockWindow();
-
-			sf::RenderWindow* RWindow = Viewport->GetRenderWindow();
-			if (RWindow && RWindow->isOpen())
-			{
-				RWindow->setActive(true);
-
-				RWindow->clear();
-				for (const FRenderTarget& RTarget : RenderData.Get())
-				{
-					if (RTarget.Drawable && RTarget.bRenderOpacity)
-					{
-						RWindow->draw(*RTarget.Drawable, RTarget.Transform);
-					}
-				}
-				RWindow->display();
-
-				RWindow->setActive(false);
-			}
+			Viewport->NextBuffer = std::move(WorkerBuffer);
+			std::swap(Viewport->RenderBuffer, Viewport->NextBuffer);
 		}
 	}
+}
+
+void RRender::ClearRenderCache()
+{
+	std::lock_guard<std::mutex> Lock(BufferMutex);
+	Viewport->RenderBuffer.Clear();
+	Viewport->NextBuffer.Clear();
+}
+
+std::unique_lock<std::mutex> RRender::LockBuffer() const
+{
+	std::unique_lock<std::mutex> Lock(BufferMutex);
+	return Lock;
 }

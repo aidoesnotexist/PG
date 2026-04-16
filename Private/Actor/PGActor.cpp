@@ -3,7 +3,7 @@
 
 APGActor::~APGActor()
 {
-	if (RenderTarget.Drawable)
+	/*if (RenderTarget.Drawable)
 	{
 		delete RenderTarget.Drawable;
 		RenderTarget.Drawable = nullptr;
@@ -13,6 +13,6 @@ APGActor::~APGActor()
 	{
 		delete RenderText.Drawable;
 		RenderText.Drawable = nullptr;
-	}
+	}*/
 }
 

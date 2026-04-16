@@ -30,7 +30,7 @@ void UPGGameInstance::Initialize()
 
 	Renderer = std::make_unique<RRender>();
 	assert(Renderer && "Failed to create Render");
-	Renderer->Init(Viewport.Raw(), GetSubsystem<UInputHandler>());
+	Renderer->Init(Viewport.Raw());
 	Renderer->StartParallel();
 
 	Viewport->OnMenuPlay.Bind(this, &UPGGameInstance::ProceedPlay);

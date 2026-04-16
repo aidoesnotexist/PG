@@ -11,6 +11,10 @@ enum class EPGSubsystem : int8_t;
 enum class EGamePhase : int8_t;
 class APGViewport;
 
+/*
+	This is the main class of the program. It controlls all etnry points and 
+	general gameflow of the game.
+*/
 class UPGGameInstance : public UPGInstance
 {
 public:

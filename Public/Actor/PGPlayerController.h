@@ -3,6 +3,12 @@
 #include "Actor/PGActor.h"
 #include "Core/Components/TDelegate.h"
 
+/*
+	PlayerController is an invisible actor that is bound to traditional
+	viewport that local player can see. It handles all system inputs and
+	fires them as delegates(callbacks), which different instances can bind to
+	for their own personal usage
+*/
 class APGPlayerController : public APGActor
 {
 public:

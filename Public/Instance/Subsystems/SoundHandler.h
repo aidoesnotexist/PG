@@ -4,6 +4,9 @@
 #include <SFML/Audio.hpp>
 #include <filesystem>
 
+/*
+	GI Subsystem, handles music and sfx
+*/
 class USoundManager : public UPGGameInstanceSubsystem
 {
 public:

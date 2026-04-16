@@ -5,7 +5,7 @@
 
 class APGViewport;
 
-/** Base class for every actor that handles user inputs */
+/** Base class for every actor that handles user inputs and can move */
 class APGPawn : public APGActor
 {
 public:

@@ -2,6 +2,9 @@
 
 #include "Actor/PGPawn.h"
 
+/*
+	Base class for pawns that have more complex logic than just moving
+*/
 class APGCharacter : public APGPawn
 {
 public:

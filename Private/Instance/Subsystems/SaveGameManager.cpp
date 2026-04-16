@@ -49,8 +49,6 @@ FMenuSettings USaveGameManager::RequestMenuSetupSettings() const
 
 	Settings.ButtonsYGap = Reader.GetReal("Menu", "ButtonsYGap", 0.f);
 
-	//Settings.ButtonsNum = Reader.GetInteger("Menu", "ButtonsNum", 0);
-
 	Settings.ButtonContinue = Reader.Get("Menu", "ButtonContinue", "");
 	Settings.ButtonEasy = Reader.Get("Menu", "ButtonEasy", "");
 	Settings.ButtonNormal = Reader.Get("Menu", "ButtonNormal", "");
@@ -157,7 +155,7 @@ const sf::Font& USaveGameManager::LoadDefaultFont()
 
 std::string USaveGameManager::GetUserSettingsPath() const
 {
-	return GetRootPath() + "/Saved/DefaultSettings.ini";
+	return GetRootPath() + "/DefaultSettings.ini";
 }
 
 std::string USaveGameManager::GetDefaultFontPath() const

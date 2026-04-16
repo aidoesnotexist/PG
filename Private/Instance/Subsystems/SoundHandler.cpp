@@ -85,6 +85,7 @@ void USoundManager::PlaySFX(const std::string& SoundName)
 		if (Sound.getStatus() != sf::Sound::Playing)
 		{
 			Sound.setBuffer(*SoundBuffers[SoundName]);
+			Sound.setVolume(25.f);
 			Sound.play();
 			return;
 		}

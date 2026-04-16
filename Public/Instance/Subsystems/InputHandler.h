@@ -4,10 +4,13 @@
 #include "Actor/PGPlayerController.h"
 #include "Core/Components/StrongPtr.h"
 
-//class APGPlayerController;
 class UPGGameInstance;
 class APGViewport;
 
+/*
+	GI Subsystem that works with render window and polls input events.
+	Delegates all events to Playercontroller
+*/
 class UInputHandler : public UPGGameInstanceSubsystem
 {
 public:

@@ -4,6 +4,7 @@
 
 class UPGGameInstance;
 
+//Abstract base class for GameInstance subsystems
 class UPGGameInstanceSubsystem abstract : public UPGInstance
 {
 public:

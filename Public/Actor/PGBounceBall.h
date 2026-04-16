@@ -40,5 +40,5 @@ protected:
 	float Accention = 1.f;
 
 private:
-	bool CircleIntersectsRect(const sf::Vector2f& Pos, float Radius, const sf::FloatRect& Rect);
+	bool CircleIntersectsRect(sf::Vector2f& Pos, float Radius, const sf::FloatRect& Rect);
 };

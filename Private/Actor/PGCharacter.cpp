@@ -11,7 +11,7 @@ APGCharacter::~APGCharacter()
 
 sf::FloatRect APGCharacter::GetCharacterBounds()
 {
-	sf::RectangleShape* Shape = dynamic_cast<sf::RectangleShape*>(GetActorRenderTarget().Drawable);
+	sf::RectangleShape* Shape = dynamic_cast<sf::RectangleShape*>(GetActorRenderTarget().Drawable.get());
 
 	sf::Vector2f Pos = GetActorRenderTarget().Transform.transformPoint(0.f, 0.f);
 	sf::Vector2f Size = Shape->getSize();

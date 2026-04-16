@@ -14,6 +14,7 @@ class APGPlayerController;
 class TTicker;
 class UPGGameInstance;
 class UInputHandler;
+class RRender;
 enum class EGamePhase : int8_t;
 
 /** This is not how the real viewport should be treated. It should be created and tied
@@ -36,9 +37,6 @@ public:
 
 	void Exit();
 
-	sf::RenderWindow* GetRenderWindow() const { return RenderWindow.get(); }
-	std::unique_lock<std::shared_mutex> LockWindow() const;
-
 	const std::vector<TStrongPtr<APGActor>>& GetViewportActors() const { return ViewportActors; }
 
 	TDelegate<> OnMenuPlay;
@@ -52,9 +50,15 @@ public:
 
 	void ClearWindowInputs();
 
-	sf::Vector2f GetRWindowSize() const { return RenderWindow ? sf::Vector2f(RenderWindow->getSize().x, RenderWindow->getSize().y) : sf::Vector2f(); }
+	const sf::Vector2f& GetRWindowSize() const { return RWindowSize; }
 
 	void OpenMenuMidGame();
+
+	FRenderData RenderBuffer;
+	FRenderData NextBuffer;
+
+	std::mutex ActorsMutex;
+	std::mutex TargetMutex;
 
 protected:
 	friend TStrongPtr<APGViewport>;
@@ -76,15 +80,17 @@ protected:
 	void ResetGameDifficulty();
 	FGameDifficulty SelectedGameDifficulty;
 
+	sf::Vector2f RWindowSize;
+
 private:
 	//RenderWindow needs to be created on game thread
 	std::unique_ptr<sf::RenderWindow> RenderWindow;
 
-	mutable std::shared_mutex RWMutex;
-
 	std::vector<TStrongPtr<APGActor>> ViewportActors;
 
+	void DrawBuffer();
 	void CreateRenderWindow(const FWindowSettings& WindowSettings);
+
 	APGPlayerController* CreatePlayerController();
 
 	UPGGameInstance* GameInstance = nullptr;
@@ -97,4 +103,6 @@ private:
 
 	void InitMenu(bool bVisible = true);
 	void InitGame();
+
+	friend class UInputHandler;
 };

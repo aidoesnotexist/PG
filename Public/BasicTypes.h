@@ -27,13 +27,13 @@ struct FRenderTarget
 	FRenderTarget() = default;
 	~FRenderTarget() = default;
 
-	FRenderTarget(/*const*/ sf::Drawable* InDrawable, const sf::Transform& InTransform)
+	FRenderTarget(sf::Drawable* InDrawable, const sf::Transform& InTransform)
 		: Drawable(InDrawable), Transform(InTransform)
 	{
 	}
 
 	sf::Transform Transform;
-	/*const*/ sf::Drawable* Drawable = nullptr;
+	std::shared_ptr<sf::Drawable> Drawable;
 	bool bRenderOpacity = true;
 };
 

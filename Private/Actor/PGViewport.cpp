@@ -49,6 +49,8 @@ void APGViewport::InitGameMode(const EGamePhase& GamePhase)
 
 void APGViewport::Deinitialize()
 {
+	std::unique_lock<std::mutex> Lock(ActorsMutex);
+
 	for (auto It = ViewportActors.begin(); It != ViewportActors.end(); )
 	{
 		TStrongPtr<APGActor>& Actor = *It;
@@ -74,6 +76,8 @@ void APGViewport::Deinitialize()
 
 void APGViewport::BeginPlay()
 {
+	std::unique_lock<std::mutex> Lock(ActorsMutex);
+
 	for (TStrongPtr<APGActor>& Actor : ViewportActors)
 	{
 		if (Actor.IsValid())
@@ -136,13 +140,7 @@ void APGViewport::Tick()
 			}
 		}
 
-		if (const RRender* const Render = GameInstance->GetRender())
-		{
-			if (Render->bUpdateRender)
-			{
-				Render->CacheRenderData();
-			}
-		}
+		DrawBuffer();
 
 		if (GameInstance->bIsPendingExit)
 		{
@@ -163,12 +161,6 @@ void APGViewport::Exit()
 	{
 		RenderWindow->close();
 	}
-}
-
-std::unique_lock<std::shared_mutex> APGViewport::LockWindow() const
-{
-	/*RenderWindow->setActive(false);*/
-	return std::unique_lock<std::shared_mutex>(RWMutex);
 }
 
 void APGViewport::OnEscapeHandle()
@@ -193,6 +185,8 @@ void APGViewport::ClearWindowInputs()
 
 void APGViewport::OpenMenuMidGame()
 {
+	std::unique_lock<std::mutex> Lock(ActorsMutex);
+
 	for (TStrongPtr<APGActor>& Actor : ViewportActors)
 	{
 		if (Actor.IsValid())
@@ -283,7 +277,7 @@ void APGViewport::HandleBounce(APGCharacter* Obstacle)
 	}
 	if (USoundManager* SM = GameInstance->GetSubsystem<USoundManager>())
 	{
-		//SM->PlaySFX("CharacterBounce");
+		SM->PlaySFX("CharacterBounce");
 	}
 }
 
@@ -293,7 +287,7 @@ void APGViewport::HandlePlayerScored()
 	UpdateScoreText(PlayerScore, PlayerScoreValue, 1);
 	if (USoundManager* SM = GameInstance->GetSubsystem<USoundManager>())
 	{
-		//SM->PlaySFX("CharacterBounce");
+		SM->PlaySFX("CharacterBounce");
 	}
 }
 
@@ -303,7 +297,7 @@ void APGViewport::HandleEnemyScored()
 	UpdateScoreText(EnemyScore, EnemyScoreValue, 1);
 	if (USoundManager* SM = GameInstance->GetSubsystem<USoundManager>())
 	{
-		//SM->PlaySFX("CharacterBounce");
+		SM->PlaySFX("CharacterBounce");
 	}
 }
 
@@ -341,14 +335,30 @@ void APGViewport::ResetGameDifficulty()
 	}
 }
 
+void APGViewport::DrawBuffer()
+{
+	auto Lock = GameInstance->GetRender()->LockBuffer();
+
+	RenderWindow->clear();
+
+	for (const FRenderTarget& RTarget : RenderBuffer.Get())
+	{
+		if (RTarget.Drawable && RTarget.bRenderOpacity)
+		{
+			RenderWindow->draw(*RTarget.Drawable, RTarget.Transform);
+		}
+	}
+
+	RenderWindow->display();
+}
+
 void APGViewport::CreateRenderWindow(const FWindowSettings& WindowSettings)
 {
-	std::unique_lock<std::shared_mutex> Lock(RWMutex);
-
 	sf::Uint32 Style = WindowSettings.bFullscreen ? sf::Style::Fullscreen : sf::Style::Default;
 	RenderWindow = std::make_unique<sf::RenderWindow>(sf::VideoMode(WindowSettings.Width, WindowSettings.Height), WindowSettings.Title, Style);
+	RWindowSize = sf::Vector2f(WindowSettings.Width, WindowSettings.Height);
 	RenderWindow->setVerticalSyncEnabled(WindowSettings.bVSync);
-	RenderWindow->setActive(false);
+	RenderWindow->setActive(true);
 }
 
 APGPlayerController* APGViewport::CreatePlayerController()
@@ -405,9 +415,15 @@ void APGViewport::InitMenu(bool bVisible)
 		BGTransform = BGTransform.translate(MenuSettings.BackgroundPositionX * RWSize.x, MenuSettings.BackgroundPositionY * RWSize.y);
 
 		FRenderTarget& RTarget = Background->GetActorRenderTarget();
-		RTarget = FRenderTarget(BGShape, BGTransform);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			RTarget = FRenderTarget(BGShape, BGTransform);
+		}
 		RTarget.bRenderOpacity = bVisible;
-		ViewportActors.push_back(Background);
+		{
+			std::unique_lock<std::mutex> Lock(ActorsMutex);
+			ViewportActors.push_back(Background);
+		}
 	}
 	sf::Vector2f BDefaultPosition = sf::Vector2f(MenuSettings.MenuButtonsDefaultPositionX * RWSize.x, MenuSettings.MenuButtonsDefaultPositionY * RWSize.y);
 	sf::Vector2f BDefaultSize = sf::Vector2f(MenuSettings.ButtonDefaultScaleX * RWSize.x, MenuSettings.ButtonDefaultScaleY * RWSize.y);
@@ -442,11 +458,17 @@ void APGViewport::InitMenu(bool bVisible)
 		LogoTextTransform.translate(LogoTextPos);
 
 		FRenderTarget& LogoRenderText = Logo->GetActorRenderText();
-		LogoRenderText = FRenderTarget(LogoText, LogoTextTransform);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			LogoRenderText = FRenderTarget(LogoText, LogoTextTransform);
+		}
 
 		LogoRenderText.bRenderOpacity = bVisible;
 
-		ViewportActors.push_back(Logo);
+		{
+			std::unique_lock<std::mutex> Lock(ActorsMutex);
+			ViewportActors.push_back(Logo);
+		}
 	}
 
 	sf::Color BtnColor = sf::Color(MenuSettings.DefaultButtonColor.R, MenuSettings.DefaultButtonColor.G,
@@ -468,7 +490,10 @@ void APGViewport::InitMenu(bool bVisible)
 		BtnTransform.translate(BDefaultPosition);
 
 		FRenderTarget& RTargen = Btn->GetActorRenderTarget();
-		RTargen = FRenderTarget(BtnShape, BtnTransform);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			RTargen = FRenderTarget(BtnShape, BtnTransform);
+		}
 
 		sf::Text* BtnText = new sf::Text();
 		BtnText->setString(Name);
@@ -486,10 +511,16 @@ void APGViewport::InitMenu(bool bVisible)
 		TextTransform.translate(TextPos);
 
 		FRenderTarget& RenderText = Btn->GetActorRenderText();
-		RenderText = FRenderTarget(BtnText, TextTransform);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			RenderText = FRenderTarget(BtnText, TextTransform);
+		}
 
 		Btn->SetUnhovered();
-		ViewportActors.push_back(Btn);
+		{ 
+			std::unique_lock<std::mutex> Lock(ActorsMutex); 
+			ViewportActors.push_back(Btn);
+		}
 
 		if (bBindDelegate)
 		{
@@ -512,7 +543,10 @@ void APGViewport::InitMenu(bool bVisible)
 		BtnTransform.translate(BDefaultPosition);
 
 		FRenderTarget& RTargen = Btn->GetActorRenderTarget();
-		RTargen = FRenderTarget(BtnShape, BtnTransform);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			RTargen = FRenderTarget(BtnShape, BtnTransform);
+		}
 
 		sf::Text* BtnText = new sf::Text();
 		BtnText->setString(Name);
@@ -530,10 +564,16 @@ void APGViewport::InitMenu(bool bVisible)
 		TextTransform.translate(TextPos);
 
 		FRenderTarget& RenderText = Btn->GetActorRenderText();
-		RenderText = FRenderTarget(BtnText, TextTransform);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			RenderText = FRenderTarget(BtnText, TextTransform);
+		}
 
 		Btn->SetUnhovered();
-		ViewportActors.push_back(Btn);
+		{
+			std::unique_lock<std::mutex> Lock(ActorsMutex);
+			ViewportActors.push_back(Btn);
+		}
 
 		Btn->OnMouseReleased.Bind(this, &APGViewport::HandleButtonReleased);
 
@@ -563,9 +603,9 @@ void APGViewport::InitMenu(bool bVisible)
 		FRenderTarget& RTN = DBtnN->GetActorRenderTarget();
 		FRenderTarget& RTH = DBtnH->GetActorRenderTarget();
 
-		sf::Drawable* DE = RTE.Drawable;
-		sf::Drawable* DN = RTN.Drawable;
-		sf::Drawable* DH = RTH.Drawable;
+		sf::Drawable* DE = RTE.Drawable.get();
+		sf::Drawable* DN = RTN.Drawable.get();
+		sf::Drawable* DH = RTH.Drawable.get();
 
 		if (DE && DN && DH)
 		{
@@ -630,7 +670,10 @@ void APGViewport::InitGame()
 		sf::Transform LBGT;
 		LBGT.translate(0.f, 0.f);
 
-		LeftBG->GetActorRenderTarget() = FRenderTarget(Shape, LBGT);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			LeftBG->GetActorRenderTarget() = FRenderTarget(Shape, LBGT);
+		}
 
 		sf::Text* Text = new sf::Text();
 		Text->setFont(SaveGameManager->LoadDefaultFont());
@@ -648,7 +691,10 @@ void APGViewport::InitGame()
 		TextT.translate(Pos);
 
 		PlayerScore = Text;
-		LeftBG->GetActorRenderText() = FRenderTarget(Text, TextT);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			LeftBG->GetActorRenderText() = FRenderTarget(Text, TextT);
+		}
 	}
 	
 	TStrongPtr<APGWidget> RightBG = CreateObject<APGWidget>();
@@ -663,7 +709,10 @@ void APGViewport::InitGame()
 		sf::Transform RBGT;
 		RBGT.translate(HalfWidth, 0.f);
 
-		RightBG->GetActorRenderTarget() = FRenderTarget(Shape, RBGT);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			RightBG->GetActorRenderTarget() = FRenderTarget(Shape, RBGT);
+		}
 
 		sf::Text* Text = new sf::Text();
 		Text->setFont(SaveGameManager->LoadDefaultFont());
@@ -681,7 +730,10 @@ void APGViewport::InitGame()
 		TextT.translate(Pos);
 
 		EnemyScore = Text;
-		RightBG->GetActorRenderText() = FRenderTarget(Text, TextT);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			RightBG->GetActorRenderText() = FRenderTarget(Text, TextT);
+		}
 	}
 	
 	TStrongPtr<APGControlledCharacter> Player = CreateObject<APGControlledCharacter>();
@@ -699,7 +751,10 @@ void APGViewport::InitGame()
 		sf::Transform PT;
 		PT.translate(Pos);
 
-		Player->GetActorRenderTarget() = FRenderTarget(Shape, PT);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			Player->GetActorRenderTarget() = FRenderTarget(Shape, PT);
+		}
 
 		Player->SetMovementBounds(sf::FloatRect(0.f, 0.f, RWSize.x * Settings.BackgroundSplit / 2.f, (float)RWSize.y));
 		Player->SetMovementSpeed(Settings.PlayerSpeed);
@@ -722,7 +777,10 @@ void APGViewport::InitGame()
 		sf::Transform ET;
 		ET.translate(Pos);
 
-		Enemy->GetActorRenderTarget() = FRenderTarget(Shape, ET);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			Enemy->GetActorRenderTarget() = FRenderTarget(Shape, ET);
+		}
 		Enemy->SetMovementBounds(sf::FloatRect(RWSize.x * Settings.BackgroundSplit, 0.f, RWSize.x * Settings.BackgroundSplit, (float)RWSize.y));
 	}
 
@@ -747,7 +805,10 @@ void APGViewport::InitGame()
 		sf::Transform BBT;
 		BBT.translate(Pos);
 
-		BounceBall->GetActorRenderTarget() = FRenderTarget(Shape, BBT);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			BounceBall->GetActorRenderTarget() = FRenderTarget(Shape, BBT);
+		}
 	}
 
 	TStrongPtr<APGWidget> Splitter = CreateObject<APGWidget>();
@@ -767,7 +828,10 @@ void APGViewport::InitGame()
 
 		ST.translate(X, 0.f);
 
-		Splitter->GetActorRenderTarget() = FRenderTarget(Shape, ST);
+		{
+			std::lock_guard<std::mutex> Lock(TargetMutex);
+			Splitter->GetActorRenderTarget() = FRenderTarget(Shape, ST);
+		}
 	}
 
 	Enemy->AddTarget(BounceBall.Raw());
@@ -776,7 +840,10 @@ void APGViewport::InitGame()
 	BounceBall->OnPlayerScored.Bind(this, &APGViewport::HandlePlayerScored);
 	BounceBall->OnEnemyScored.Bind(this, &APGViewport::HandleEnemyScored);
 
-	ViewportActors = { LeftBG, RightBG, Player, Enemy, Splitter, BounceBall };
+	{
+		std::unique_lock<std::mutex> Lock(ActorsMutex);
+		ViewportActors = { LeftBG, RightBG, Player, Enemy, Splitter, BounceBall };
+	}
 
 	ResetGameDifficulty();
 }

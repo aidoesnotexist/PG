@@ -16,7 +16,7 @@ void APGControlledCharacter::Tick(const float Delta)
 
 	Position += Move;
 
-	sf::RectangleShape* Shape = static_cast<sf::RectangleShape*>(GetActorRenderTarget().Drawable);
+	sf::RectangleShape* Shape = static_cast<sf::RectangleShape*>(GetActorRenderTarget().Drawable.get());
 	if (!Shape)
 	{
 		return;

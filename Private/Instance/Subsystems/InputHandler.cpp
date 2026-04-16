@@ -28,21 +28,17 @@ void UInputHandler::RegisterInputs(const APGViewport* Viewport)
 	{
 		return;
 	}
-
-	std::unique_lock<std::shared_mutex> Lock = Viewport->LockWindow();
-	sf::RenderWindow* RWindow = Viewport->GetRenderWindow();
-	if (!RWindow)
+;
+	if (!Viewport->RenderWindow)
 	{
 		return;
 	}
 
 	sf::Event InputEvent;
 	PlayerController->InputEvents.clear();
-	//PlayerController->InputEvents = PoolEvents;
 
-	while (RWindow->pollEvent(InputEvent))
+	while (Viewport->RenderWindow->pollEvent(InputEvent))
 	{
-		//printf("INPUT HANDLER ACCESSING PC AT: %p\n", (void*)PlayerController);
 		PlayerController->InputEvents.push_back(InputEvent);
 	}
 }

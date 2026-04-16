@@ -36,8 +36,7 @@ public:
 				return Listener.Class == Object;
 			};
 
-		//Listeners.erase(std::erase_if(Listeners.begin(), Listeners.end(), RemovePredicate), Listeners.end());
-		std::erase_if(Listeners, RemovePredicate);
+		std::erase_if(Listeners, RemovePredicate); //C++20 compiler required
 	}
 
 	void Broadcast(Args... args)

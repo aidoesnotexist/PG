@@ -11,7 +11,7 @@ void APGEnemyCharacter::Tick(const float Delta)
 	sf::Transform& CT = GetActorRenderTarget().Transform;
 	sf::Vector2f Position = CT.transformPoint(0.f, 0.f);
 
-	sf::RectangleShape* Shape = static_cast<sf::RectangleShape*>(GetActorRenderTarget().Drawable);
+	sf::RectangleShape* Shape = static_cast<sf::RectangleShape*>(GetActorRenderTarget().Drawable.get());
 	if (!Shape)
 	{
 		return;

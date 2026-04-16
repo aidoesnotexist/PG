@@ -3,7 +3,9 @@
 #include "Core/Object.h"
 #include "BasicTypes.h"
 
-/** Base class for everything that can be rendered, tick and have its independent logic.*/
+/** Base class for everything that can be rendered, tick and have its independent logic 
+	inside world(viewport) 
+*/
 class APGActor : public UPGObject
 {
 public:

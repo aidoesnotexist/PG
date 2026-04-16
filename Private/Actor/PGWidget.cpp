@@ -3,7 +3,7 @@
 
 std::string APGWidget::GetWidgetText() const
 {
-	sf::Text* RText = dynamic_cast<sf::Text*>(RenderText.Drawable);
+	sf::Text* RText = dynamic_cast<sf::Text*>(RenderText.Drawable.get());
 	if (RText)
 	{
 		return RText->getString().toAnsiString();;
@@ -18,7 +18,7 @@ void APGWidget::SetHovered()
 		return;
 	}
 
-	sf::RectangleShape* Slot = dynamic_cast<sf::RectangleShape*>(RenderTarget.Drawable);
+	sf::RectangleShape* Slot = dynamic_cast<sf::RectangleShape*>(RenderTarget.Drawable.get());
 	if (Slot)
 	{
 		Slot->setOutlineColor(HoverOutlineColor);
@@ -33,7 +33,7 @@ void APGWidget::SetUnhovered()
 		return;
 	}
 
-	sf::RectangleShape* Slot = dynamic_cast<sf::RectangleShape*>(RenderTarget.Drawable);
+	sf::RectangleShape* Slot = dynamic_cast<sf::RectangleShape*>(RenderTarget.Drawable.get());
 	if (Slot)
 	{
 		Slot->setOutlineColor(DefaultOutlineColor);
@@ -53,7 +53,7 @@ void APGWidget::OnMouseEvent(EMouseInput::I MouseInput, const sf::Vector2f Cache
 		return;
 	}
 
-	const sf::RectangleShape* Slot = dynamic_cast<const sf::RectangleShape*>(RenderTarget.Drawable);
+	const sf::RectangleShape* Slot = dynamic_cast<const sf::RectangleShape*>(RenderTarget.Drawable.get());
 	if (!Slot)
 	{
 		return;
