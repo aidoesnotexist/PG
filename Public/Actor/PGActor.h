@@ -12,7 +12,7 @@ public:
 	APGActor(const APGActor&) = delete;
 	APGActor& operator=(const APGActor&) = delete;
 
-	virtual ~APGActor();
+	virtual ~APGActor() = default;
 
 	virtual void BeginPlay() {}
 
