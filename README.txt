@@ -1,11 +1,11 @@
-UObject
-├── UInstance
+UObject					   ../Public/Core
+├── UInstance							   ../Public/Instance
 │   ├── UGameInstance
-│   ├── UPGGameInstanceSubsystem
+│   ├── UPGGameInstanceSubsystem		   ../Public/Instance/Subsystems
 │   │   ├── UInputHandler
 │   │   ├── USaveGameManager
 │   │   └── USoundManager
-│   └── AActor
+│   └── AActor							   ../Public/Actor
 │       ├── APlayerController
 │       └── APawn
 │           ├── AWidget
@@ -13,9 +13,9 @@ UObject
 │               ├── AEnemyCharacter
 │               ├── ABounceBall
 │               └── AControlledCharacter
-Utilities:
+Utilities:				   ../Public/Core/Components
 ├── TStrongPtr
 ├── TDelegate
 └── TTicker
 |
-BasicTypes
+BasicTypes				   ../Public
